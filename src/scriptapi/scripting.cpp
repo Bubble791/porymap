@@ -1,18 +1,23 @@
 #include "scripting.h"
 #include "log.h"
+#include "config.h"
+#include "aboutporymap.h"
 
 QMap<CallbackType, QString> callbackFunctions = {
     {OnProjectOpened, "onProjectOpened"},
     {OnProjectClosed, "onProjectClosed"},
     {OnBlockChanged, "onBlockChanged"},
+    {OnBorderMetatileChanged, "onBorderMetatileChanged"},
     {OnBlockHoverChanged, "onBlockHoverChanged"},
     {OnBlockHoverCleared, "onBlockHoverCleared"},
     {OnMapOpened, "onMapOpened"},
     {OnMapResized, "onMapResized"},
+    {OnBorderResized, "onBorderResized"},
     {OnMapShifted, "onMapShifted"},
     {OnTilesetUpdated, "onTilesetUpdated"},
     {OnMainTabChanged, "onMainTabChanged"},
     {OnMapViewTabChanged, "onMapViewTabChanged"},
+    {OnBorderVisibilityToggled, "onBorderVisibilityToggled"},
 };
 
 Scripting *instance = nullptr;
@@ -20,6 +25,7 @@ Scripting *instance = nullptr;
 void Scripting::init(MainWindow *mainWindow) {
     if (instance) {
         instance->engine->setInterrupted(true);
+        instance->scriptUtility->clearActions();
         qDeleteAll(instance->imageCache);
         delete instance;
     }
@@ -29,18 +35,18 @@ void Scripting::init(MainWindow *mainWindow) {
 Scripting::Scripting(MainWindow *mainWindow) {
     this->engine = new QJSEngine(mainWindow);
     this->engine->installExtensions(QJSEngine::ConsoleExtension);
-    this->engine->globalObject().setProperty("map", this->engine->newQObject(mainWindow));
-    for (QString script : projectConfig.getCustomScripts()) {
+    for (QString script : userConfig.getCustomScripts()) {
         this->filepaths.append(script);
     }
     this->loadModules(this->filepaths);
+    this->scriptUtility = new ScriptUtility(mainWindow);
 }
 
 void Scripting::loadModules(QStringList moduleFiles) {
     for (QString filepath : moduleFiles) {
         QJSValue module = this->engine->importModule(filepath);
         if (module.isError()) {
-            QString relativePath = QDir::cleanPath(projectConfig.getProjectDir() + QDir::separator() + filepath);
+            QString relativePath = QDir::cleanPath(userConfig.getProjectDir() + QDir::separator() + filepath);
             module = this->engine->importModule(relativePath);
             if (tryErrorJS(module)) continue;
         }
@@ -48,6 +54,45 @@ void Scripting::loadModules(QStringList moduleFiles) {
         logInfo(QString("Successfully loaded custom script file '%1'").arg(filepath));
         this->modules.append(module);
     }
+}
+
+void Scripting::populateGlobalObject(MainWindow *mainWindow) {
+    if (!instance || !instance->engine) return;
+
+    instance->engine->globalObject().setProperty("map", instance->engine->newQObject(mainWindow));
+    instance->engine->globalObject().setProperty("overlay", instance->engine->newQObject(mainWindow->ui->graphicsView_Map));
+    instance->engine->globalObject().setProperty("utility", instance->engine->newQObject(instance->scriptUtility));
+
+    QJSValue constants = instance->engine->newObject();
+
+    // Get basic tile/metatile information
+    int numTilesPrimary = Project::getNumTilesPrimary();
+    int numTilesTotal = Project::getNumTilesTotal();
+    int numMetatilesPrimary = Project::getNumMetatilesPrimary();
+    int numMetatilesTotal = Project::getNumMetatilesTotal();
+
+    // Invisibly create an "About" window to read Porymap version
+    AboutPorymap *about = new AboutPorymap(mainWindow);
+    if (about) {
+        QJSValue version = Scripting::version(about->getVersionNumbers());
+        constants.setProperty("version", version);
+        delete about;
+    } else {
+        logError("Failed to read Porymap version for API");
+    }
+    constants.setProperty("max_primary_tiles", numTilesPrimary);
+    constants.setProperty("max_secondary_tiles", numTilesTotal - numTilesPrimary);
+    constants.setProperty("max_primary_metatiles", numMetatilesPrimary);
+    constants.setProperty("max_secondary_metatiles", numMetatilesTotal - numMetatilesPrimary);
+    constants.setProperty("layers_per_metatile", projectConfig.getNumLayersInMetatile());
+    constants.setProperty("tiles_per_metatile", projectConfig.getNumTilesInMetatile());
+    constants.setProperty("base_game_version", projectConfig.getBaseGameVersionString());
+
+    instance->engine->globalObject().setProperty("constants", constants);
+
+    // Prevent changes to the constants object
+    instance->engine->evaluate("Object.freeze(constants.version);");
+    instance->engine->evaluate("Object.freeze(constants);");
 }
 
 bool Scripting::tryErrorJS(QJSValue js) {
@@ -80,22 +125,12 @@ void Scripting::invokeCallback(CallbackType type, QJSValueList args) {
     }
 }
 
-void Scripting::registerAction(QString functionName, QString actionName) {
-    if (!instance) return;
-    instance->registeredActions.insert(actionName, functionName);
-}
-
-int Scripting::numRegisteredActions() {
-    if (!instance) return 0;
-    return instance->registeredActions.size();
-}
-
 void Scripting::invokeAction(QString actionName) {
-    if (!instance) return;
-    if (!instance->registeredActions.contains(actionName)) return;
+    if (!instance || !instance->scriptUtility) return;
+    QString functionName = instance->scriptUtility->getActionFunctionName(actionName);
+    if (functionName.isEmpty()) return;
 
     bool foundFunction = false;
-    QString functionName = instance->registeredActions.value(actionName);
     for (QJSValue module : instance->modules) {
         QJSValue callbackFunction = module.property(functionName);
         if (callbackFunction.isUndefined() || !callbackFunction.isCallable())
@@ -140,6 +175,18 @@ void Scripting::cb_MetatileChanged(int x, int y, Block prevBlock, Block newBlock
     instance->invokeCallback(OnBlockChanged, args);
 }
 
+void Scripting::cb_BorderMetatileChanged(int x, int y, uint16_t prevMetatileId, uint16_t newMetatileId) {
+    if (!instance) return;
+
+    QJSValueList args {
+        x,
+        y,
+        prevMetatileId,
+        newMetatileId,
+    };
+    instance->invokeCallback(OnBorderMetatileChanged, args);
+}
+
 void Scripting::cb_BlockHoverChanged(int x, int y) {
     if (!instance) return;
 
@@ -174,6 +221,18 @@ void Scripting::cb_MapResized(int oldWidth, int oldHeight, int newWidth, int new
         newHeight,
     };
     instance->invokeCallback(OnMapResized, args);
+}
+
+void Scripting::cb_BorderResized(int oldWidth, int oldHeight, int newWidth, int newHeight) {
+    if (!instance) return;
+
+    QJSValueList args {
+        oldWidth,
+        oldHeight,
+        newWidth,
+        newHeight,
+    };
+    instance->invokeCallback(OnBorderResized, args);
 }
 
 void Scripting::cb_MapShifted(int xDelta, int yDelta) {
@@ -215,6 +274,15 @@ void Scripting::cb_MapViewTabChanged(int oldTab, int newTab) {
     instance->invokeCallback(OnMapViewTabChanged, args);
 }
 
+void Scripting::cb_BorderVisibilityToggled(bool visible) {
+    if (!instance) return;
+
+    QJSValueList args {
+        visible,
+    };
+    instance->invokeCallback(OnBorderVisibilityToggled, args);
+}
+
 QJSValue Scripting::fromBlock(Block block) {
     QJSValue obj = instance->engine->newObject();
     obj.setProperty("metatileId", block.metatileId);
@@ -238,18 +306,26 @@ QJSValue Scripting::position(int x, int y) {
     return obj;
 }
 
+QJSValue Scripting::version(QList<int> versionNums) {
+    QJSValue obj = instance->engine->newObject();
+    obj.setProperty("major", versionNums.at(0));
+    obj.setProperty("minor", versionNums.at(1));
+    obj.setProperty("patch", versionNums.at(2));
+    return obj;
+}
+
 Tile Scripting::toTile(QJSValue obj) {
-    if (!obj.hasProperty("tileId")
-     || !obj.hasProperty("xflip")
-     || !obj.hasProperty("yflip")
-     || !obj.hasProperty("palette")) {
-        return Tile();
-    }
     Tile tile = Tile();
-    tile.tileId = obj.property("tileId").toInt();
-    tile.xflip = obj.property("xflip").toBool();
-    tile.yflip = obj.property("yflip").toBool();
-    tile.palette = obj.property("palette").toInt();
+
+    if (obj.hasProperty("tileId"))
+        tile.tileId = obj.property("tileId").toInt();
+    if (obj.hasProperty("xflip"))
+        tile.xflip = obj.property("xflip").toBool();
+    if (obj.hasProperty("yflip"))
+        tile.yflip = obj.property("yflip").toBool();
+    if (obj.hasProperty("palette"))
+        tile.palette = obj.property("palette").toInt();
+
     return tile;
 }
 
@@ -259,6 +335,13 @@ QJSValue Scripting::fromTile(Tile tile) {
     obj.setProperty("xflip", tile.xflip);
     obj.setProperty("yflip", tile.yflip);
     obj.setProperty("palette", tile.palette);
+    return obj;
+}
+
+QJSValue Scripting::dialogInput(QJSValue input, bool selectedOk) {
+    QJSValue obj = instance->engine->newObject();
+    obj.setProperty("input", input);
+    obj.setProperty("ok", selectedOk);
     return obj;
 }
 

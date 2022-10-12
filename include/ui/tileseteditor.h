@@ -96,17 +96,17 @@ private slots:
     void on_comboBox_terrainType_activated(int arg1);
 
     void on_actionExport_Primary_Tiles_Image_triggered();
-
     void on_actionExport_Secondary_Tiles_Image_triggered();
+    void on_actionExport_Primary_Metatiles_Image_triggered();
+    void on_actionExport_Secondary_Metatiles_Image_triggered();
 
     void on_actionImport_Primary_Metatiles_triggered();
-
     void on_actionImport_Secondary_Metatiles_triggered();
 
     void on_copyButton_metatileLabel_clicked();
 
+    void on_actionCut_triggered();
     void on_actionCopy_triggered();
-
     void on_actionPaste_triggered();
 
 private:
@@ -133,7 +133,9 @@ private:
     void closeEvent(QCloseEvent*);
     void countMetatileUsage();
     void countTileUsage();
-    bool replaceMetatile(uint16_t metatileId, Metatile * src);
+    void copyMetatile(bool cut);
+    void pasteMetatile(const Metatile * toPaste);
+    bool replaceMetatile(uint16_t metatileId, const Metatile * src);
 
     Ui::TilesetEditor *ui;
     History<MetatileHistoryItem*> metatileHistory;

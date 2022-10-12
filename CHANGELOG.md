@@ -4,37 +4,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project somewhat adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).  The MAJOR version number is bumped when there are breaking changes in the pret projects.
 
-The **"Breaking Changes"** listed below are changes that have been made in the decompilation projects (e.g. pokeemerald), which porymap requires in order to work properly. If porymap is used on a project that is not up-to-date with the breaking changes, then porymap will likely break or behave improperly.
+The **"Breaking Changes"** listed below are changes that have been made in the decompilation projects (e.g. pokeemerald), which porymap requires in order to work properly. It also includes changes to the scripting API that may change the behavior of existing porymap scripts. If porymap is used with a project or API script that is not up-to-date with the breaking changes, then porymap will likely break or behave improperly.
 
 ## [Unreleased]
 ### Breaking Changes
 - Proper support for pokefirered's clone objects was added, which requires the changes made in [pokefirered/#484](https://github.com/pret/pokefirered/pull/484).
+- Many API functions which were previously accessible via the `map` object are now accessible via one of the new objects `overlay`, `utility`, or `constants`. Some functions were renamed accordingly. See [porymap/#460](https://github.com/huderlem/porymap/pull/460) for a full list of API function name changes.
+- Arguments for the API function `createImage` have changed: `xflip` and `yflip`  have been replaced with `hScale` and `vScale`, and `offset` has been replaced with `xOffset` and `yOffset`.
 
 ### Added
-- Add Copy/Paste for metatiles in the Tileset Editor.
-- Add ability to set the opacity of the scripting overlay.
-- Add ability to get/set map header properties and read tile pixel data via the API.
+- Add prefab support
+- Add Cut/Copy/Paste for metatiles in the Tileset Editor.
+- Add new features to the scripting API, including the ability to display message boxes and user input windows, set overlay opacity, get/set map header properties, read/write the map border, read tile pixel data, and set blocks or metatile attributes using a raw value.
 - Add button to copy the full metatile label to the clipboard in the Tileset Editor.
+- Add ability to export an image of the primary or secondary tileset's metatiles.
 - Add option to not open the most recent project on launch.
+- Add options for customizing how new maps are filled
 - Add color picker to palette editor for taking colors from the screen.
 
 ### Changed
+- Overhauled the region map editor, adding support for tilemaps, and significant customization. Also now supports pokefirered.
 - If an object event is inanimate, it will always render using its first frame.
 - Only log "Unknown custom script function" when a registered script function is not present in any script.
 - Unused metatile attribute bits that are set are preserved instead of being cleared.
 - The wild encounter editor is automatically disabled if the encounter JSON data cannot be read
-- Overhauled the region map editor, adding support for tilemaps, and significant customization. Also now supports pokefirered.
 - Metatiles are always rendered accurately with 3 layers, and the unused layer is not assumed to be transparent.
 - `object_event_graphics_info.h` can now be parsed correctly if it uses structs with attributes.
+- Tileset data in `headers`, `graphics`, and `metatiles` can now be parsed if written in C.
+- The selection is no longer reset when pasting events. The newly pasted events are selected instead.
 - Palette editor ui is updated a bit to allow hex and rgb value input.
+- The metatile behavior is now displayed in the bottom bar mouseover text.
 
 ### Fixed
 - Fix cursor tile outline not updating at the end of a dragged selection.
 - Fix cursor tile and player view outlines exiting map bounds while painting.
 - Fix cursor tile and player view outlines not updating immediately when toggled in Collision view.
 - Fix selected space not updating while painting in Collision view.
+- Fix collision values of 2 or 3 not rendering properly.
 - Fix the map music dropdown being empty when importing a map from Advance Map.
+- Fix object events added by pasting ignoring the map event limit.
 - Fixed a bug where saving the tileset editor would reselect the main editor's first selected metatile.
+- Fix crashes / unexpected behavior if certain scripting API functions are given invalid palette or tile numbers.
+- Silence unnecessary error logging when parsing C defines Porymap doesn't use.
+- Fix some windows like the Tileset Editor not raising to the front when reactivated.
 
 ## [4.5.0] - 2021-12-26
 ### Added

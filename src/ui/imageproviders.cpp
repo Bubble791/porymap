@@ -8,7 +8,7 @@ QImage getCollisionMetatileImage(Block block) {
 }
 
 QImage getCollisionMetatileImage(int collision, int elevation) {
-    int x = collision * 16;
+    int x = (collision != 0) * 16;
     int y = elevation * 16;
     QPixmap collisionImage = QPixmap(":/images/collisions.png").copy(x, y, 16, 16);
     return collisionImage.toImage();
@@ -23,8 +23,7 @@ QImage getMetatileImage(
         bool useTruePalettes)
 {
     Metatile* metatile = Tileset::getMetatile(metatileId, primaryTileset, secondaryTileset);
-    Tileset* blockTileset = Tileset::getMetatileTileset(metatileId, primaryTileset, secondaryTileset);
-    if (!metatile || !blockTileset) {
+    if (!metatile) {
         QImage metatile_image(16, 16, QImage::Format_RGBA8888);
         metatile_image.fill(Qt::magenta);
         return metatile_image;
@@ -66,13 +65,13 @@ QImage getMetatileImage(
             tile = metatile->tiles.value(tileOffset + (l * 4));
         } else {
             // "Vanilla" metatiles only have 8 tiles, but render 12.
-            // The remaining 4 tiles are rendered either as tile 0 or 0x3014 (invalid) depending on layer type.
+            // The remaining 4 tiles are rendered either as tile 0 or 0x3014 (tile 20, palette 3) depending on layer type.
             switch (layerType)
             {
             default:
             case METATILE_LAYER_MIDDLE_TOP:
                 if (l == 0)
-                    tile = Tile(0x3014, false, false, 0);
+                    tile = Tile(0x3014);
                 else // Tiles are on layers 1 and 2
                     tile = metatile->tiles.value(tileOffset + ((l - 1) * 4));
                 break;
