@@ -18,7 +18,7 @@ jobs:
   build-static-windows:
     runs-on: windows-latest
     env:
-      BUILD_NAME: porymap-windows
+      BUILD_NAME: porymap-chs-windows
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
