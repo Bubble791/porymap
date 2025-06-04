@@ -408,14 +408,16 @@ bool Tileset::loadMetatiles() {
 
     QByteArray data = metatiles_file.readAll();
     int tilesPerMetatile = projectConfig.getNumTilesInMetatile();
-    int bytesPerMetatile = 2 * tilesPerMetatile;
+    int bytesPerMetatile = 4 * tilesPerMetatile;
     int num_metatiles = data.length() / bytesPerMetatile;
     for (int i = 0; i < num_metatiles; i++) {
         auto metatile = new Metatile;
         int index = i * bytesPerMetatile;
         for (int j = 0; j < tilesPerMetatile; j++) {
-            uint16_t tileRaw = static_cast<unsigned char>(data[index++]);
+            uint32_t tileRaw = static_cast<unsigned char>(data[index++]);
             tileRaw |= static_cast<unsigned char>(data[index++]) << 8;
+            tileRaw |= static_cast<unsigned char>(data[index++]) << 16;
+            tileRaw |= static_cast<unsigned char>(data[index++]) << 24;
             metatile->tiles.append(Tile(tileRaw));
         }
         m_metatiles.append(metatile);
@@ -434,9 +436,11 @@ bool Tileset::saveMetatiles() {
     int numTiles = projectConfig.getNumTilesInMetatile();
     for (const auto &metatile : m_metatiles) {
         for (int i = 0; i < numTiles; i++) {
-            uint16_t tile = metatile->tiles.at(i).rawValue();
+            uint32_t tile = metatile->tiles.at(i).rawValue();
             data.append(static_cast<char>(tile));
             data.append(static_cast<char>(tile >> 8));
+            data.append(static_cast<char>(tile >> 16));
+            data.append(static_cast<char>(tile >> 24));
         }
     }
     metatiles_file.write(data);

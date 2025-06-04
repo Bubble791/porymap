@@ -9,21 +9,23 @@ class Tile
 public:
     Tile();
     Tile(uint16_t tileId, uint16_t xflip, uint16_t yflip, uint16_t palette);
-    Tile(uint16_t raw);
+    Tile(uint32_t raw);
 
 public:
-    uint16_t tileId:10;
-    uint16_t xflip:1;
-    uint16_t yflip:1;
-    uint16_t palette:4;
-    uint16_t rawValue() const;
+    uint32_t tileId:10;
+    uint32_t xflip:1;
+    uint32_t yflip:1;
+    uint32_t tileIndex:4;
+    uint32_t palette:8;
+    uint32_t unused:8;
+    uint32_t rawValue() const;
 
     Qt::Orientations orientation() const;
     void flip(QImage *image) const;
 
     static int getIndexInTileset(int);
 
-    static const uint16_t maxValue;
+    static const uint32_t maxValue;
 };
 
 inline bool operator==(const Tile &a, const Tile &b) {

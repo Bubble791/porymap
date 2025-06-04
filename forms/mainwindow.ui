@@ -2852,11 +2852,11 @@
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
-     <string>File</string>
+     <string>文件</string>
     </property>
     <widget class="QMenu" name="menuOpen_Recent_Project">
      <property name="title">
-      <string>Open Recent Project</string>
+      <string>打开最近的项目</string>
      </property>
     </widget>
     <addaction name="action_Open_Project"/>
@@ -2882,12 +2882,12 @@
    </widget>
    <widget class="QMenu" name="menuEdit">
     <property name="title">
-     <string>Edit</string>
+     <string>编辑</string>
     </property>
    </widget>
    <widget class="QMenu" name="menuView">
     <property name="title">
-     <string>View</string>
+     <string>视图</string>
     </property>
     <addaction name="actionZoom_In"/>
     <addaction name="actionZoom_Out"/>
@@ -2907,7 +2907,7 @@
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
-     <string>Tools</string>
+     <string>工具</string>
     </property>
     <addaction name="actionPencil"/>
     <addaction name="actionPointer"/>
@@ -2923,7 +2923,7 @@
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
-     <string>Help</string>
+     <string>帮助</string>
     </property>
     <addaction name="actionAbout_Porymap"/>
     <addaction name="actionOpen_Log_File"/>
@@ -2932,7 +2932,7 @@
    </widget>
    <widget class="QMenu" name="menuOptions">
     <property name="title">
-     <string>Options</string>
+     <string>选项</string>
     </property>
     <addaction name="actionProject_Settings"/>
     <addaction name="actionPreferences"/>
@@ -2948,7 +2948,7 @@
   </widget>
   <action name="action_Save_Project">
    <property name="text">
-    <string>Save All</string>
+    <string>全部保存</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+Shift+S</string>
@@ -2956,7 +2956,7 @@
   </action>
   <action name="action_Exit">
    <property name="text">
-    <string>Exit</string>
+    <string>退出</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+Q</string>
@@ -2964,7 +2964,7 @@
   </action>
   <action name="action_Open_Project">
    <property name="text">
-    <string>Open Project...</string>
+    <string>打开项目...</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+O</string>
@@ -2972,12 +2972,12 @@
   </action>
   <action name="action_Reload_Project">
    <property name="text">
-    <string>Reload Project</string>
+    <string>重新加载项目</string>
    </property>
   </action>
   <action name="action_Save">
    <property name="text">
-    <string>Save</string>
+    <string>保存</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+S</string>
@@ -2985,7 +2985,7 @@
   </action>
   <action name="action_NewMap">
    <property name="text">
-    <string>New Map...</string>
+    <string>创建新地图...</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+N</string>
