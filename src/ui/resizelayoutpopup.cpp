@@ -99,7 +99,7 @@ void ResizeLayoutPopup::resetPosition() {
 }
 
 void ResizeLayoutPopup::on_buttonBox_clicked(QAbstractButton *button) {
-    if(button == this->ui->buttonBox->button(QDialogButtonBox::Reset) ) {
+    if (button == this->ui->buttonBox->button(QDialogButtonBox::Reset) ) {
         this->scene->clear();
         setupLayoutView();
     }
@@ -170,9 +170,12 @@ void ResizeLayoutPopup::setupLayoutView() {
     layoutPixmap->setBoundary(outline);
     emit this->outline->rectUpdated(outline->rect().toAlignedRect());
 
-    // TODO: is this an ideal size for all maps, or should this adjust based on starting dimensions?
-    this->ui->graphicsView->setTransform(QTransform::fromScale(0.5, 0.5));
-    this->ui->graphicsView->centerOn(layoutPixmap);
+    this->scale = 1.0;
+
+    QRectF rect = this->outline->rect();
+    const int marginSize = 10 * 16; // Leave a margin of 10 metatiles around the map
+    rect += QMargins(marginSize, marginSize, marginSize, marginSize);
+    this->ui->graphicsView->fitInView(rect, Qt::KeepAspectRatio);
 }
 
 void ResizeLayoutPopup::on_spinBox_width_valueChanged(int value) {
@@ -201,4 +204,21 @@ QMargins ResizeLayoutPopup::getResult() {
 
 QSize ResizeLayoutPopup::getBorderResult() {
     return QSize(this->ui->spinBox_borderWidth->value(), this->ui->spinBox_borderHeight->value());
+}
+
+void ResizeLayoutPopup::zoom(qreal delta) {
+    if (this->scale + delta < 0.05 || this->scale + delta > 3.0)
+        return;
+    this->scale += delta;
+    this->ui->graphicsView->scale(1.0 + delta, 1.0 + delta);
+}
+
+void ResizeLayoutPopup::keyPressEvent(QKeyEvent *event) {
+    if (event->key() == Qt::Key_Plus || event->key() == Qt::Key_Equal) {
+        zoom(+0.1);
+    } else if (event->key() == Qt::Key_Minus || event->key() == Qt::Key_Underscore) {
+        zoom(-0.1);
+    } else {
+        QDialog::keyPressEvent(event);
+    }
 }

@@ -5,7 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project somewhat adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).  The MAJOR version number is bumped when there are **"Breaking Changes"** in the pret projects. For more on this, see [the manual page on breaking changes](https://huderlem.github.io/porymap/manual/breaking-changes.html).
 
 ## [Unreleased]
-Nothing, yet.
+### Changed
+- The scale of the map can now be changed while resizing the map.
+
+### Fixed
+- Fix duplicated maps writing the wrong name.
+- Fix small maps being difficult to see while resizing.
+- Fix expressions using the prefix '0X' as opposed to '0x' not being recognized has hex numbers.
+- Fix certain characters not writing correctly to JSON files.
+- Fix all `map.json` files being added to the file watcher at launch.
+- Fix files sometimes being removed from the file watcher if they're deleted as part of a write.
 
 ## [6.0.0] - 2025-05-26
 ### Breaking Changes
