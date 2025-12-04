@@ -51,10 +51,12 @@ public:
     void setLayoutId(const QString &layoutId) { m_layoutId = layoutId; }
     QString layoutId() const { return layout() ? layout()->id : m_layoutId; }
 
-    int getWidth() const;
-    int getHeight() const;
-    int getBorderWidth() const;
-    int getBorderHeight() const;
+    int getWidth() const { return m_layout ? m_layout->getWidth() : 0; }
+    int getHeight() const { return m_layout ? m_layout->getHeight() : 0; }
+    int getBorderWidth() const { return m_layout ? m_layout->getBorderWidth() : 0; }
+    int getBorderHeight() const { return m_layout ? m_layout->getBorderHeight() : 0; }
+    int pixelWidth() const { return m_layout ? m_layout->pixelWidth() : 0; }
+    int pixelHeight() const { return m_layout ? m_layout->pixelHeight() : 0; }
 
     void setHeader(const MapHeader &header) { *m_header = header; }
     MapHeader* header() const { return m_header; }
@@ -62,6 +64,8 @@ public:
     void setSharedEventsMap(const QString &sharedEventsMap) { m_sharedEventsMap = sharedEventsMap; }
     void setSharedScriptsMap(const QString &sharedScriptsMap);
 
+    bool isInheritingEvents() const { return !m_sharedEventsMap.isEmpty() && !hasEvents(); }
+    bool isInheritingScripts() const { return !m_sharedScriptsMap.isEmpty(); }
     QString sharedEventsMap() const { return m_sharedEventsMap; }
     QString sharedScriptsMap() const { return m_sharedScriptsMap; }
 
@@ -83,10 +87,12 @@ public:
     void addEvent(Event *);
     int getIndexOfEvent(Event *) const;
     bool hasEvent(Event *) const;
+    bool hasEvents() const;
 
     QStringList getScriptLabels(Event::Group group = Event::Group::None);
     QString getScriptsFilepath() const;
     void openScript(const QString &label);
+    void invalidateScripts();
 
     static QString getJsonFilepath(const QString &mapName);
     QString getJsonFilepath() const { return getJsonFilepath(m_name); }
@@ -132,9 +138,6 @@ private:
     QMap<Event::Group, QList<Event *>> m_events;
     QSet<Event *> m_ownedEvents; // for memory management
 
-    QList<int> m_metatileLayerOrder;
-    QList<float> m_metatileLayerOpacity;
-
     void trackConnection(MapConnection*);
 
     // MapConnections in 'ownedConnections' but not 'connections' persist in the edit history.
@@ -144,13 +147,11 @@ private:
     QPointer<QUndoStack> m_editHistory;
     QPointer<QFileSystemWatcher> m_scriptFileWatcher;
 
-    void invalidateScripts();
-
 signals:
     void modified();
     void scriptsModified();
     void mapDimensionsChanged(const QSize &size);
-    void openScriptRequested(QString label);
+    void openScriptRequested(const QString &label);
     void connectionAdded(MapConnection*);
     void connectionRemoved(MapConnection*);
     void layoutChanged();

@@ -12,6 +12,8 @@
 #include <QUrl>
 #include <QVersionNumber>
 #include <QGraphicsPixmapItem>
+#include <QFontDatabase>
+#include <QStandardPaths>
 #include <set>
 
 #include "events.h"
@@ -24,6 +26,12 @@ extern const QVersionNumber porymapVersion;
 #define GBA_V_DIST_TO_CENTER ((160-16)/2)
 
 #define CONFIG_BACKWARDS_COMPATABILITY
+
+enum ScriptAutocompleteMode {
+    MapOnly,
+    MapAndCommon,
+    All,
+};
 
 class KeyValueConfigBase
 {
@@ -52,7 +60,8 @@ protected:
     static bool getConfigBool(const QString &key, const QString &value);
     static int getConfigInteger(const QString &key, const QString &value, int min = INT_MIN, int max = INT_MAX, int defaultValue = 0);
     static uint32_t getConfigUint32(const QString &key, const QString &value, uint32_t min = 0, uint32_t max = UINT_MAX, uint32_t defaultValue = 0);
-    static QColor getConfigColor(const QString &key, const QString &value, const QColor &defaultValue = Qt::black);
+    static QColor getConfigColor(const QString &key, const QString &value, const QColor &defaultValue = QColor(Qt::black));
+    static QString toConfigColor(const QColor &color);
 
     QString m_root;
     QString m_filename;
@@ -63,54 +72,7 @@ class PorymapConfig: public KeyValueConfigBase
 {
 public:
     PorymapConfig();
-    virtual void reset() override {
-        this->recentProjects.clear();
-        this->projectManuallyClosed = false;
-        this->reopenOnLaunch = true;
-        this->mapListTab = 0;
-        this->mapListEditGroupsEnabled = false;
-        this->mapListHideEmptyEnabled.clear();
-        this->prettyCursors = true;
-        this->mirrorConnectingMaps = true;
-        this->showDiveEmergeMaps = false;
-        this->diveEmergeMapOpacity = 30;
-        this->diveMapOpacity = 15;
-        this->emergeMapOpacity = 15;
-        this->collisionOpacity = 50;
-        this->collisionZoom = 30;
-        this->metatilesZoom = 30;
-        this->tilesetEditorMetatilesZoom = 30;
-        this->tilesetEditorTilesZoom = 30;
-        this->showPlayerView = false;
-        this->showCursorTile = true;
-        this->showBorder = true;
-        this->showGrid = false;
-        this->showTilesetEditorMetatileGrid = false;
-        this->showTilesetEditorLayerGrid = true;
-        this->showTilesetEditorDivider = false;
-        this->showTilesetEditorRawAttributes = false;
-        this->monitorFiles = true;
-        this->tilesetCheckerboardFill = true;
-        this->newMapHeaderSectionExpanded = false;
-        this->theme = "default";
-        this->wildMonChartTheme = "";
-        this->textEditorOpenFolder = "";
-        this->textEditorGotoLine = "";
-        this->paletteEditorBitDepth = 24;
-        this->projectSettingsTab = 0;
-        this->loadAllEventScripts = false;
-        this->warpBehaviorWarningDisabled = false;
-        this->eventDeleteWarningDisabled = false;
-        this->eventOverlayEnabled = false;
-        this->checkForUpdates = true;
-        this->lastUpdateCheckTime = QDateTime();
-        this->lastUpdateCheckVersion = porymapVersion;
-        this->rateLimitTimes.clear();
-        this->eventSelectionShapeMode = QGraphicsPixmapItem::MaskShape;
-        this->shownInGameReloadMessage = false;
-        this->gridSettings = GridSettings();
-        this->statusBarLogTypes = { LogType::LOG_ERROR, LogType::LOG_WARN };
-    }
+    virtual void reset() override;
     void addRecentProject(QString project);
     void setRecentProjects(QStringList projects);
     QString getRecentProject();
@@ -128,6 +90,8 @@ public:
     QMap<QString, QByteArray> getProjectSettingsEditorGeometry();
     QMap<QString, QByteArray> getCustomScriptsEditorGeometry();
 
+    static QFont defaultMapListFont() { return QFontDatabase::systemFont(QFontDatabase::FixedFont); }
+
     bool reopenOnLaunch;
     bool projectManuallyClosed;
     int mapListTab;
@@ -144,6 +108,7 @@ public:
     int metatilesZoom;
     int tilesetEditorMetatilesZoom;
     int tilesetEditorTilesZoom;
+    Qt::Orientation tilesetEditorLayerOrientation;
     bool showPlayerView;
     bool showCursorTile;
     bool showBorder;
@@ -152,6 +117,7 @@ public:
     bool showTilesetEditorLayerGrid;
     bool showTilesetEditorDivider;
     bool showTilesetEditorRawAttributes;
+    bool showPaletteEditorUnusedColors;
     bool monitorFiles;
     bool tilesetCheckerboardFill;
     bool newMapHeaderSectionExpanded;
@@ -161,7 +127,7 @@ public:
     QString textEditorGotoLine;
     int paletteEditorBitDepth;
     int projectSettingsTab;
-    bool loadAllEventScripts;
+    ScriptAutocompleteMode scriptAutocompleteMode;
     bool warpBehaviorWarningDisabled;
     bool eventDeleteWarningDisabled;
     bool eventOverlayEnabled;
@@ -177,6 +143,8 @@ public:
     GridSettings gridSettings;
     // Prefer over QSet to prevent shuffling elements when writing the config file.
     std::set<LogType> statusBarLogTypes;
+    QFont applicationFont;
+    QFont mapListFont;
 
 protected:
     virtual void parseConfigKeyValue(QString key, QString value) override;
@@ -342,7 +310,7 @@ public:
         this->prefabImportPrompted = false;
         this->tilesetsHaveCallback = true;
         this->tilesetsHaveIsCompressed = true;
-        this->setTransparentPixelsBlack = true;
+        this->transparencyColor = QColor(Qt::black);
         this->preserveMatchingOnlyData = false;
         this->filePaths.clear();
         this->eventIconPaths.clear();
@@ -359,6 +327,7 @@ public:
         this->unusedTileSplit = 0x0000;
         this->maxEventsPerGroup = 255;
         this->forcedMajorVersion = 0;
+        this->metatileSelectorWidth = 8;
         this->globalConstantsFilepaths.clear();
         this->globalConstants.clear();
         this->identifiers.clear();
@@ -417,7 +386,7 @@ public:
     bool prefabImportPrompted;
     bool tilesetsHaveCallback;
     bool tilesetsHaveIsCompressed;
-    bool setTransparentPixelsBlack;
+    QColor transparencyColor;
     bool preserveMatchingOnlyData;
     int metatileAttributesSize;
     uint32_t metatileBehaviorMask;
@@ -438,6 +407,7 @@ public:
     QList<uint32_t> warpBehaviors;
     int maxEventsPerGroup;
     int forcedMajorVersion;
+    int metatileSelectorWidth;
     QStringList globalConstantsFilepaths;
     QMap<QString,QString> globalConstants;
 
@@ -502,7 +472,10 @@ class ShortcutsConfig : public KeyValueConfigBase
 public:
     ShortcutsConfig();
 
-    virtual void reset() override { user_shortcuts.clear(); }
+    virtual void reset() override {
+        setRoot(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation));
+        user_shortcuts.clear();
+    }
 
     // Call this before applying user shortcuts so that the user can restore defaults.
     void setDefaultShortcuts(const QObjectList &objects);

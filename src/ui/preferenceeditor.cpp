@@ -1,12 +1,14 @@
 #include "preferenceeditor.h"
 #include "ui_preferenceeditor.h"
-#include "config.h"
 #include "noscrollcombobox.h"
+#include "message.h"
 
 #include <QAbstractButton>
 #include <QRegularExpression>
 #include <QDirIterator>
 #include <QFormLayout>
+#include <QFontDialog>
+#include <QToolTip>
 
 
 PreferenceEditor::PreferenceEditor(QWidget *parent) :
@@ -21,8 +23,23 @@ PreferenceEditor::PreferenceEditor(QWidget *parent) :
     themeSelector->setMinimumContentsLength(0);
     formLayout->addRow("Themes", themeSelector);
     setAttribute(Qt::WA_DeleteOnClose);
-    connect(ui->buttonBox, &QDialogButtonBox::clicked,
-            this, &PreferenceEditor::dialogButtonClicked);
+    connect(ui->buttonBox, &QDialogButtonBox::clicked, this, &PreferenceEditor::dialogButtonClicked);
+
+    connect(ui->pushButton_CustomizeApplicationFont, &QPushButton::clicked, [this] {
+        openFontDialog(&this->applicationFont);
+    });
+    connect(ui->pushButton_CustomizeMapListFont, &QPushButton::clicked, [this] {
+        openFontDialog(&this->mapListFont);
+    });
+    connect(ui->pushButton_ResetApplicationFont, &QPushButton::clicked, [this] {
+        this->applicationFont = QFont();
+        QToolTip::showText(ui->pushButton_ResetApplicationFont->mapToGlobal(QPoint(0, 0)), "Font reset!");
+    });
+    connect(ui->pushButton_ResetMapListFont, &QPushButton::clicked, [this] {
+        this->mapListFont = PorymapConfig::defaultMapListFont();
+        QToolTip::showText(ui->pushButton_ResetMapListFont->mapToGlobal(QPoint(0, 0)), "Font reset!");
+    });
+
     initFields();
     updateFields();
 }
@@ -58,29 +75,47 @@ void PreferenceEditor::updateFields() {
     ui->checkBox_OpenRecentProject->setChecked(porymapConfig.reopenOnLaunch);
     ui->checkBox_CheckForUpdates->setChecked(porymapConfig.checkForUpdates);
     ui->checkBox_DisableEventWarning->setChecked(porymapConfig.eventDeleteWarningDisabled);
-    ui->checkBox_AutocompleteAllScripts->setChecked(porymapConfig.loadAllEventScripts);
+
+    if (porymapConfig.scriptAutocompleteMode == ScriptAutocompleteMode::MapOnly) {
+        ui->radioButton_AutocompleteMapScripts->setChecked(true);
+    } else if (porymapConfig.scriptAutocompleteMode == ScriptAutocompleteMode::MapAndCommon) {
+        ui->radioButton_AutocompleteCommonScripts->setChecked(true);
+    } else if (porymapConfig.scriptAutocompleteMode == ScriptAutocompleteMode::All) {
+        ui->radioButton_AutocompleteAllScripts->setChecked(true);
+    }
 
     auto logTypeEnd = porymapConfig.statusBarLogTypes.end();
     ui->checkBox_StatusErrors->setChecked(porymapConfig.statusBarLogTypes.find(LogType::LOG_ERROR) != logTypeEnd);
     ui->checkBox_StatusWarnings->setChecked(porymapConfig.statusBarLogTypes.find(LogType::LOG_WARN) != logTypeEnd);
     ui->checkBox_StatusInformation->setChecked(porymapConfig.statusBarLogTypes.find(LogType::LOG_INFO) != logTypeEnd);
+
+    this->applicationFont = porymapConfig.applicationFont;
+    this->mapListFont = porymapConfig.mapListFont;
 }
 
 void PreferenceEditor::saveFields() {
+    bool needsProjectReload = false;
+
+    bool changedTheme = false;
     if (themeSelector->currentText() != porymapConfig.theme) {
-        const auto theme = themeSelector->currentText();
-        porymapConfig.theme = theme;
-        emit themeChanged(theme);
+        porymapConfig.theme = themeSelector->currentText();
+        changedTheme = true;
     }
-    bool loadAllEventScripts = ui->checkBox_AutocompleteAllScripts->isChecked();
-    if (loadAllEventScripts != porymapConfig.loadAllEventScripts) {
-        porymapConfig.loadAllEventScripts = loadAllEventScripts;
-        emit scriptSettingsChanged(loadAllEventScripts);
+
+    auto scriptAutocompleteMode = ScriptAutocompleteMode::MapOnly;
+    if (ui->radioButton_AutocompleteCommonScripts->isChecked()) {
+        scriptAutocompleteMode = ScriptAutocompleteMode::MapAndCommon;
+    } else if (ui->radioButton_AutocompleteAllScripts->isChecked()) {
+        scriptAutocompleteMode = ScriptAutocompleteMode::All;
     }
+    if (scriptAutocompleteMode != porymapConfig.scriptAutocompleteMode) {
+        porymapConfig.scriptAutocompleteMode = scriptAutocompleteMode;
+        emit scriptSettingsChanged(scriptAutocompleteMode);
+    }
+
     porymapConfig.eventSelectionShapeMode = ui->radioButton_OnSprite->isChecked() ? QGraphicsPixmapItem::MaskShape : QGraphicsPixmapItem::BoundingRectShape;
     porymapConfig.textEditorOpenFolder = ui->lineEdit_TextEditorOpenFolder->text();
     porymapConfig.textEditorGotoLine = ui->lineEdit_TextEditorGotoLine->text();
-    porymapConfig.monitorFiles = ui->checkBox_MonitorProjectFiles->isChecked();
     porymapConfig.reopenOnLaunch = ui->checkBox_OpenRecentProject->isChecked();
     porymapConfig.checkForUpdates = ui->checkBox_CheckForUpdates->isChecked();
     porymapConfig.eventDeleteWarningDisabled = ui->checkBox_DisableEventWarning->isChecked();
@@ -90,9 +125,33 @@ void PreferenceEditor::saveFields() {
     if (ui->checkBox_StatusWarnings->isChecked()) porymapConfig.statusBarLogTypes.insert(LogType::LOG_WARN);
     if (ui->checkBox_StatusInformation->isChecked()) porymapConfig.statusBarLogTypes.insert(LogType::LOG_INFO);
 
-    porymapConfig.save();
+    if (porymapConfig.monitorFiles != ui->checkBox_MonitorProjectFiles->isChecked()) {
+        porymapConfig.monitorFiles = ui->checkBox_MonitorProjectFiles->isChecked();
+        needsProjectReload = true;
+    }
 
+    if (porymapConfig.applicationFont != this->applicationFont) {
+        porymapConfig.applicationFont = this->applicationFont;
+        changedTheme = true;
+    }
+    if (porymapConfig.mapListFont != this->mapListFont) {
+        porymapConfig.mapListFont = this->mapListFont;
+        changedTheme = true;
+    }
+
+    if (changedTheme) {
+        emit themeChanged(porymapConfig.theme);
+    }
+
+    porymapConfig.save();
     emit preferencesSaved();
+
+    if (needsProjectReload) {
+        auto message = QStringLiteral("Some changes will only take effect after reloading the project. Reload the project now?");
+        if (QuestionMessage::show(message, this) == QMessageBox::Yes) {
+            emit reloadProjectRequested();
+        }
+    }
 }
 
 void PreferenceEditor::dialogButtonClicked(QAbstractButton *button) {
@@ -105,4 +164,14 @@ void PreferenceEditor::dialogButtonClicked(QAbstractButton *button) {
     } else if (buttonRole == QDialogButtonBox::RejectRole) {
         close();
     }
+}
+
+void PreferenceEditor::openFontDialog(QFont *font) {
+    auto dialog = new QFontDialog(*font, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setOption(QFontDialog::DontUseNativeDialog);
+    connect(dialog, &QFontDialog::fontSelected, [font](const QFont &selectedFont) {
+        *font = selectedFont;
+    });
+    dialog->open();
 }

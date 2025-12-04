@@ -14,7 +14,7 @@ void Util::numericalModeSort(QStringList &list) {
     std::sort(list.begin(), list.end(), collator);
 }
 
-int Util::roundUp(int numToRound, int multiple) {
+int Util::roundUpToMultiple(int numToRound, int multiple) {
     if (multiple <= 0)
         return numToRound;
 
@@ -48,6 +48,42 @@ QString Util::toHtmlParagraph(const QString &text) {
     return QString("<html><head/><body><p>%1</p></body></html>").arg(text);
 }
 
+QString Util::toStylesheetString(const QFont &font) {
+    QString s = QString("font-family: \"%1\";").arg(font.family());
+
+    // Font size
+    if (font.pixelSize() >= 0) {
+        s.append(QString(" font-size: %1px;").arg(font.pixelSize()));
+    } else if (font.pointSize() >= 0) {
+        s.append(QString(" font-size: %1pt;").arg(font.pointSize()));
+    }
+
+    // Font weight
+    if (font.weight() >= 0) {
+        s.append(QString(" font-weight: %1;").arg(font.weight()));
+    }
+
+    // Text decoration
+    if (font.underline() || font.strikeOut()) {
+        s.append(QString(" text-decoration:%1%2;")
+                    .arg(font.underline() ? " underline" : "")
+                    .arg(font.strikeOut() ? " line-through" : ""));
+    } else {
+        s.append(" text-decoration: none;");
+    }
+
+    // Font style
+    if (font.style() == QFont::StyleItalic) {
+        s.append(" font-style: italic;");
+    } else if (font.style() == QFont::StyleOblique) {
+        s.append(" font-style: oblique;");
+    } else {
+        s.append(" font-style: normal;");
+    }
+
+    return s;
+}
+
 QString Util::stripPrefix(const QString &s, const QString &prefix) {
     if (!s.startsWith(prefix)) {
         return s;
@@ -75,4 +111,17 @@ QString Util::replaceExtension(const QString &path, const QString &newExtension)
 void Util::setErrorStylesheet(QLineEdit *lineEdit, bool isError) {
     static const QString stylesheet = QStringLiteral("QLineEdit { background-color: rgba(255, 0, 0, 25%) }");
     lineEdit->setStyleSheet(isError ? stylesheet : "");
+}
+
+void Util::show(QWidget *w) {
+    if (!w) return;
+
+    if (!w->isVisible()) {
+        w->show();
+    } else if (w->isMinimized()) {
+        w->showNormal();
+    } else {
+        w->raise();
+        w->activateWindow();
+    }
 }
